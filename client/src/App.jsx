@@ -14,6 +14,8 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  
+
   const handleSearch = async (username) => {
     setLoading(true)
     setError(null)
@@ -23,10 +25,10 @@ function App() {
 
     try {
       const [userRes, reposRes, langsRes] = await Promise.all([
-        axios.get(`http://localhost:5000/api/user/${username}`),
-        axios.get(`http://localhost:5000/api/repos/${username}`),
-        axios.get(`http://localhost:5000/api/languages/${username}`)
-      ])
+      axios.get(`${import.meta.env.VITE_API_URL}/api/user/${username}`),
+      axios.get(`${import.meta.env.VITE_API_URL}/api/repos/${username}`),
+      axios.get(`${import.meta.env.VITE_API_URL}/api/languages/${username}`)
+    ])
       setUserData(userRes.data)
       setRepos(reposRes.data)
       setLanguages(langsRes.data)
