@@ -1,7 +1,7 @@
-###What is GitInsight?
+# What is GitInsight?
 GitInsight is a full stack GitHub profile analyser that lets you uncover deep insights about any developer. Enter a GitHub username and instantly get a beautiful dashboard showing their profile stats, language breakdown, top repositories, an AI-generated developer summary, and a downloadable profile card.
 
-Features
+## Features
 
 Profile Analytics — Followers, following, repo count, account age, location, and more
 Profile Score & Grade — Sophisticated scoring across 6 dimensions: Reach, Impact, Consistency, Quality, Versatility, and Community
