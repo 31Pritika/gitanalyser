@@ -1,16 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Groq = require("groq-sdk");
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ Initialize Gemini safely
-const genAI = process.env.GEMINI_API_KEY
-  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-  : null;
+// ✅ Initialize Groq safely
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 // ✅ TEMP: Allow all CORS (fix your mobile issue first)
 app.use(cors());
@@ -104,28 +104,19 @@ app.get('/api/summary/:username', async (req, res) => {
   const { username } = req.params;
 
   try {
-    if (!genAI) {
-      return res.status(500).json({ error: 'Missing Gemini API key' });
-    }
-
     const headers = process.env.GITHUB_TOKEN
       ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
       : {};
 
     const [userRes, reposRes] = await Promise.all([
       axios.get(`https://api.github.com/users/${username}`, { headers }),
-      axios.get(
-        `https://api.github.com/users/${username}/repos?per_page=100`,
-        { headers }
-      )
+      axios.get(`https://api.github.com/users/${username}/repos?per_page=100`, { headers })
     ]);
 
     const user = userRes.data;
     const repos = reposRes.data;
 
     const totalStars = repos.reduce((a, r) => a + r.stargazers_count, 0);
-    const totalForks = repos.reduce((a, r) => a + r.forks_count, 0);
-
     const ownedRepos = repos.filter(r => !r.fork);
 
     const topRepos = [...ownedRepos]
@@ -140,49 +131,40 @@ app.get('/api/summary/:username', async (req, res) => {
     ).toFixed(1);
 
     const prompt = `
-You are analysing a GitHub developer profile. Write a 3-4 sentence professional yet engaging summary of this developer based on their stats. Be specific, insightful, and human. Do not use bullet points. Do not start with "This developer".
+Summarize this GitHub developer in 3-4 sentences. Be clear, insightful, and human.
 
-Developer stats:
-- Username: ${user.login}
-- Name: ${user.name || 'Not provided'}
-- Bio: ${user.bio || 'Not provided'}
-- Account age: ${accountAge} years
-- Followers: ${user.followers}
-- Following: ${user.following}
-- Public repos: ${user.public_repos}
-- Own repos (not forked): ${ownedRepos.length}
-- Total stars earned: ${totalStars}
-- Total forks: ${totalForks}
-- Location: ${user.location || 'Not provided'}
-- Top repos: ${topRepos || 'None'}
+Username: ${user.login}
+Bio: ${user.bio || 'N/A'}
+Followers: ${user.followers}
+Repos: ${user.public_repos}
+Stars: ${totalStars}
+Top repos: ${topRepos}
+Account age: ${accountAge} years
+`;
 
-Write only the summary, nothing else.
-    `;
-
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-flash-1.5'
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
     });
 
-    const result = await model.generateContent(prompt);
-    // Try Gemini v1.5-flash-latest, fallback to .text() if needed
-    let summary = '';
-    if (result?.response?.candidates?.[0]?.content?.parts?.[0]?.text) {
-      summary = result.response.candidates[0].content.parts[0].text;
-    } else if (typeof result.response.text === 'function') {
-      summary = result.response.text();
-    } else {
-      summary = 'No summary generated';
-    }
+    const summary = chatCompletion.choices[0]?.message?.content;
+
     res.json({ summary });
+
   } catch (error) {
-    console.log("🔥 SUMMARY ERROR FULL:");
-    console.log(error.response?.data || error.message || error);
-    return res.status(500).json({
-      error: 'Failed to generate summary',
-      debug: error.response?.data || error.message
+    console.log("GROQ ERROR:", error);
+    res.status(500).json({
+      error: "Failed to generate summary",
+      debug: error.message
     });
   }
 });
+
 // ------------------ ROOT ------------------
 app.get('/', (req, res) => {
   res.send('API is running...');
