@@ -30,5 +30,5 @@ dotenv, cors<br>
 
 ### Deployment
 
-Frontend → Vercel<br>
+Frontend → Vercel Check out: https://gitinsight-kappa.vercel.app/ <br> 
 Backend → Render<br>
